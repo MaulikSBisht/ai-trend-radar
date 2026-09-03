@@ -7,15 +7,23 @@ on:
   # Allow manual runs from the Actions tab
   workflow_dispatch:
 
+# The job only reads the checkout; the token is used for GitHub Search API
+# rate limits, not for writing anything back.
+permissions:
+  contents: read
+
 jobs:
   run-radar:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Python
+        # Pinned to 3.12, which has prebuilt wheels for matplotlib and fpdf2.
+        # Local development runs 3.14; see README "Python version".
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -30,14 +38,18 @@ jobs:
         env:
           # Required: Resend API key for sending the report email.
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          # Sender must be a Resend-verified domain address,
-          # or "onboarding@resend.dev" for testing.
+          # Sender must be a Resend-verified domain address.
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           # Where the report is delivered.
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
-          # Optional: raises the GitHub search API rate limit.
-          # The built-in token is provided automatically by Actions.
+          # GITHUB_TOKEN cannot be created as a repository secret - the name is
+          # reserved - but Actions provides it automatically and referencing it
+          # here is legal. Raises the Search API rate limit well above anonymous.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # CI only: turn a dead or empty source into a failed run instead of a
+          # quietly incomplete report. This is what makes GitHub's automatic
+          # workflow-failure email a working alert.
+          STRICT_SOURCES: "1"
         run: python main.py
 
       - name: Upload report PDF artifact

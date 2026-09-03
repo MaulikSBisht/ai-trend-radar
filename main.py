@@ -1,17 +1,48 @@
 """AI Trend Radar - end-to-end pipeline: fetch -> PDF -> email."""
+import os
 import sys
 from dotenv import load_dotenv
 from aggregate import collect
 from report import build_pdf
 from mailer import send_report
 
+SOURCES = ("github", "hackernews", "reddit")
+
+
+def strict_failures(data, counts):
+    """Reasons this run should be treated as failed under STRICT_SOURCES.
+
+    There are two distinct failure shapes, and the second is the one that
+    bites in CI: a source that throws lands in data["errors"], but a source
+    that is merely blocked or throttled can return an empty list without
+    raising anything at all. Checking only data["errors"] would wave that
+    through as a green run with a third of the report missing.
+    """
+    reasons = [f"{k} raised: {v}" for k, v in data["errors"].items()]
+    reasons += [f"{k} returned 0 items" for k in SOURCES
+                if k not in data["errors"] and not counts[k]]
+    return reasons
+
 
 def run(send=True):
     load_dotenv()
+    strict = bool(os.getenv("STRICT_SOURCES"))
+
     print("[1/3] Collecting trends...")
     data = collect()
-    counts = {k: len(data[k]) for k in ("github", "hackernews", "reddit")}
+    counts = {k: len(data[k]) for k in SOURCES}
     print("      ", counts)
+
+    # Locally this stays forgiving: a dead source degrades the report but
+    # still delivers it. In CI STRICT_SOURCES turns that into a hard failure,
+    # which is what makes GitHub's workflow-failure email actually fire.
+    if strict:
+        reasons = strict_failures(data, counts)
+        if reasons:
+            print("\nSTRICT_SOURCES set: refusing to ship an incomplete report.")
+            for r in reasons:
+                print(f"  - {r}")
+            sys.exit(1)
 
     print("[2/3] Building PDF...")
     pdf = build_pdf(data)
