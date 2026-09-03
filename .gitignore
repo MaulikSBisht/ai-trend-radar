@@ -1,0 +1,14 @@
+# Secrets - never commit
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Generated artifacts
+output/
+*.pdf
+
+# Local editor/tool config
+.claude/settings.local.json

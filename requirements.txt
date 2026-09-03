@@ -1,0 +1,6 @@
+requests
+feedparser
+python-dotenv
+fpdf2
+resend
+matplotlib
