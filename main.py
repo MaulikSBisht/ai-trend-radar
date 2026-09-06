@@ -8,6 +8,12 @@ from mailer import send_report
 
 SOURCES = ("github", "hackernews", "reddit")
 
+# Per-source floor for STRICT_SOURCES. Hacker News is allowed to hit 0: the
+# keyword filter (see sources/hackernews.py) can legitimately find no AI
+# stories on a quiet news day, and _get_item's own failed-fetch guard is what
+# distinguishes that from the Firebase item API being down.
+MIN_ITEMS = {"github": 1, "hackernews": 0, "reddit": 1}
+
 
 def strict_failures(data, counts):
     """Reasons this run should be treated as failed under STRICT_SOURCES.
@@ -19,8 +25,9 @@ def strict_failures(data, counts):
     through as a green run with a third of the report missing.
     """
     reasons = [f"{k} raised: {v}" for k, v in data["errors"].items()]
-    reasons += [f"{k} returned 0 items" for k in SOURCES
-                if k not in data["errors"] and not counts[k]]
+    reasons += [f"{k} returned {counts[k]} items (minimum {MIN_ITEMS[k]})"
+                for k in SOURCES
+                if k not in data["errors"] and counts[k] < MIN_ITEMS[k]]
     return reasons
 
 
