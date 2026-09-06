@@ -3,8 +3,15 @@ import re
 import requests
 from concurrent.futures import ThreadPoolExecutor
 
+from sources._retry import retry
+
 TOP = "https://hacker-news.firebaseio.com/v0/topstories.json"
 ITEM = "https://hacker-news.firebaseio.com/v0/item/{}.json"
+
+# Transient Firebase blips on the topstories call are worth a couple of
+# quick retries rather than losing the whole section.
+RETRIES = 3
+BACKOFF = 5  # seconds, multiplied by attempt number -> 5s, 10s
 
 KEYWORDS = ["ai", "llm", "gpt", "agent", "agentic", "openai", "anthropic", "claude",
             "gemini", "model", "neural", "machine learning", "ml",
@@ -28,8 +35,13 @@ def _is_ai(title):
     return bool(_AI_RE.search(title or ""))
 
 
+def _fetch_top(scan):
+    return requests.get(TOP, timeout=30).json()[:scan]
+
+
 def fetch_hackernews(scan=120, limit=10):
-    ids = requests.get(TOP, timeout=30).json()[:scan]
+    ids = retry(lambda: _fetch_top(scan),
+                attempts=RETRIES, backoff=BACKOFF, label="hn topstories")
     with ThreadPoolExecutor(max_workers=20) as ex:
         items = list(ex.map(_get_item, ids))
     out = []
