@@ -1,4 +1,5 @@
 """Hacker News top stories filtered for AI keywords."""
+import re
 import requests
 from concurrent.futures import ThreadPoolExecutor
 
@@ -6,8 +7,14 @@ TOP = "https://hacker-news.firebaseio.com/v0/topstories.json"
 ITEM = "https://hacker-news.firebaseio.com/v0/item/{}.json"
 
 KEYWORDS = ["ai", "llm", "gpt", "agent", "openai", "anthropic", "claude",
-            "gemini", "model", "neural", "machine learning", "ml ",
+            "gemini", "model", "neural", "machine learning", "ml",
             "transformer", "diffusion", "rag", "mistral", "llama"]
+
+# Word-boundary match with an optional trailing "s" so plurals ("LLMs",
+# "agents", "models") still hit. Bare substring matching let "ai"/"rag"/"ml"
+# fire inside ordinary words (e.g. "chair", "storage", "yaml").
+_AI_RE = re.compile(r"\b(?:" + "|".join(re.escape(k) for k in KEYWORDS) + r")s?\b",
+                    re.IGNORECASE)
 
 
 def _get_item(sid):
@@ -18,8 +25,7 @@ def _get_item(sid):
 
 
 def _is_ai(title):
-    t = (title or "").lower()
-    return any(k in t for k in KEYWORDS)
+    return bool(_AI_RE.search(title or ""))
 
 
 def fetch_hackernews(scan=120, limit=10):
