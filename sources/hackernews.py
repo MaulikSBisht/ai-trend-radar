@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 TOP = "https://hacker-news.firebaseio.com/v0/topstories.json"
 ITEM = "https://hacker-news.firebaseio.com/v0/item/{}.json"
 
-KEYWORDS = ["ai", "llm", "gpt", "agent", "openai", "anthropic", "claude",
+KEYWORDS = ["ai", "llm", "gpt", "agent", "agentic", "openai", "anthropic", "claude",
             "gemini", "model", "neural", "machine learning", "ml",
             "transformer", "diffusion", "rag", "mistral", "llama"]
 
