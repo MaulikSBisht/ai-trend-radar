@@ -10,8 +10,8 @@ SOURCES = ("github", "hackernews", "reddit")
 
 # Per-source floor for STRICT_SOURCES. Hacker News is allowed to hit 0: the
 # keyword filter (see sources/hackernews.py) can legitimately find no AI
-# stories on a quiet news day, and _get_item's own failed-fetch guard is what
-# distinguishes that from the Firebase item API being down.
+# stories on a quiet news day, and fetch_hackernews's own failed-fetch guard
+# is what distinguishes that from the Firebase item API being down.
 MIN_ITEMS = {"github": 1, "hackernews": 0, "reddit": 1}
 
 

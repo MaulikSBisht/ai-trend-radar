@@ -46,6 +46,22 @@ IS_AI_CASES = [
     ("GPT-4 architecture leaked", True),
     ("An AI-powered code reviewer", True),
 
+    # Common joined forms the old "s?" suffix regex missed (no word boundary
+    # between a bare "ai"/"gpt" and letters glued onto it, e.g. "ChatGPT",
+    # "GenAI") - fixed by adding explicit keywords.
+    ("ChatGPT is down", True),
+    ("GenAI hype", True),
+    ("LLMOps at scale", True),
+    ("Mistral7B fine-tune", True),
+    ("MLOps is dead", True),
+
+    # Version-suffixed product names the old "s?" suffix regex missed (no
+    # word boundary between the name and a following digit run) - fixed by
+    # replacing the suffix with "(?:s|\\d[\\w.]*)?".
+    ("Llama3 released", True),
+    ("GPT4 benchmarks", True),
+    ("Gemini2.5 Pro", True),
+
     # Edge cases.
     (None, False),
     ("", False),

@@ -15,13 +15,21 @@ BACKOFF = 5  # seconds, multiplied by attempt number -> 5s, 10s
 
 KEYWORDS = ["ai", "llm", "gpt", "agent", "agentic", "openai", "anthropic", "claude",
             "gemini", "model", "neural", "machine learning", "ml",
-            "transformer", "diffusion", "rag", "mistral", "llama"]
+            "transformer", "diffusion", "rag", "mistral", "llama",
+            "chatgpt", "genai", "llmops", "mlops"]
 
-# Word-boundary match with an optional trailing "s" so plurals ("LLMs",
-# "agents", "models") still hit. Bare substring matching let "ai"/"rag"/"ml"
-# fire inside ordinary words (e.g. "chair", "storage", "yaml").
-_AI_RE = re.compile(r"\b(?:" + "|".join(re.escape(k) for k in KEYWORDS) + r")s?\b",
-                    re.IGNORECASE)
+# Word-boundary match with an optional trailing suffix so plurals ("LLMs",
+# "agents", "models") and version-suffixed product names ("Llama3",
+# "GPT4", "Gemini2.5", "Mistral7B") still hit. Bare substring matching let
+# "ai"/"rag"/"ml" fire inside ordinary words (e.g. "chair", "storage",
+# "yaml"); a bare "s?" suffix missed common joined forms like "ChatGPT" and
+# "GenAI" (no word boundary before the trailing "ai"/"gpt" - hence the
+# explicit "chatgpt"/"genai"/"llmops"/"mlops" keywords above) and version
+# suffixes like "Llama3" or "Gemini2.5" (no boundary between the name and a
+# digit run).
+_AI_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(k) for k in KEYWORDS) + r")(?:s|\d[\w.]*)?\b",
+    re.IGNORECASE)
 
 
 class _FetchFailed:
@@ -34,7 +42,9 @@ _FAILED = _FetchFailed()
 
 def _get_item(sid):
     try:
-        return requests.get(ITEM.format(sid), timeout=15).json()
+        r = requests.get(ITEM.format(sid), timeout=15)
+        r.raise_for_status()
+        return r.json()
     except Exception:
         return _FAILED
 
@@ -44,7 +54,9 @@ def _is_ai(title):
 
 
 def _fetch_top(scan):
-    return requests.get(TOP, timeout=30).json()[:scan]
+    r = requests.get(TOP, timeout=30)
+    r.raise_for_status()
+    return r.json()[:scan]
 
 
 def fetch_hackernews(scan=120, limit=10):

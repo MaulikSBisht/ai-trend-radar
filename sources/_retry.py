@@ -4,6 +4,8 @@ import time
 
 def retry(fn, *, attempts=3, backoff=5, label="request"):
     """Call fn(), retrying on exception with linear backoff. Re-raises the last."""
+    if attempts < 1:
+        raise ValueError(f"attempts must be >= 1, got {attempts}")
     last = None
     for attempt in range(1, attempts + 1):
         try:

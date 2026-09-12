@@ -54,8 +54,13 @@ def fetch_reddit(limit=8):
     for i, (sub, url) in enumerate(FEEDS.items()):
         if i:
             time.sleep(PAUSE)  # be a polite anonymous client
-        entries = retry(lambda: _fetch_one(sub, url),
-                        attempts=RETRIES, backoff=BACKOFF, label=f"r/{sub}")
+        try:
+            entries = retry(lambda: _fetch_one(sub, url),
+                            attempts=RETRIES, backoff=BACKOFF, label="reddit")
+        except Exception as e:
+            raise RuntimeError(
+                f"{e} (Datacenter IPs are frequently rate-limited or "
+                f"blocked by Reddit.)") from e
         for entry in entries[:limit]:
             desc = _clean(entry.get("summary", ""))
             out.append({
