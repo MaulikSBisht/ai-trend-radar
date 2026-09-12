@@ -1,5 +1,5 @@
 requests==2.34.2
-feedparser==6.0.12
+feedparser==6.0.14
 python-dotenv==1.2.2
 fpdf2==2.8.7
 resend==2.30.1
