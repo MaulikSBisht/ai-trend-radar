@@ -3,4 +3,4 @@ feedparser==6.0.12
 python-dotenv==1.2.2
 fpdf2==2.8.7
 resend==2.30.1
-matplotlib==3.10.9
+matplotlib==3.11.1
