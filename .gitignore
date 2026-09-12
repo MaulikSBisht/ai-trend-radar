@@ -12,3 +12,6 @@ output/
 
 # Local editor/tool config
 .claude/settings.local.json
+
+# SDD scratch
+.superpowers/

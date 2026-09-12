@@ -48,13 +48,24 @@ python main.py             # full pipeline, sends the email
 The PDF lands at `output/ai_trend_radar.pdf`. The `output/` directory is
 gitignored and created at runtime, so a fresh checkout works.
 
-Individual sources can be run standalone for debugging:
+Individual sources can be run standalone for debugging. Use `-m` so Python
+runs them as part of the `sources` package (a plain `python sources/github.py`
+fails with `ModuleNotFoundError: No module named 'sources'`, since the
+module's own internal `from sources._retry import retry` can't resolve when
+the file is executed directly):
 
 ```bash
-python sources/github.py
-python sources/hackernews.py
-python sources/reddit.py
+python -m sources.github
+python -m sources.hackernews
+python -m sources.reddit
 python aggregate.py          # fetch all three, print counts
+```
+
+### Running the tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
 ```
 
 ## Deployment (GitHub Actions)
@@ -111,13 +122,31 @@ delivered email** — the report quietly ships missing a third of its content, a
 nothing ever alerts you.
 
 So the workflow sets `STRICT_SOURCES=1`, which makes `main.py` exit non-zero
-before building or sending anything if any source failed **or returned zero
-items**. That turns a dead source into a failed workflow run, which GitHub
-emails you about. Local runs leave it unset and keep the forgiving behaviour.
+before building or sending anything if any source fails the check below. That
+turns a dead source into a failed workflow run, which GitHub emails you about.
+Local runs leave it unset and keep the forgiving behaviour.
 
-Both conditions matter. A source that throws lands in `data["errors"]`, but a
-source that is merely blocked can return an empty list without raising at all —
-checking only for exceptions would wave that case straight through.
+The check is per-source, because "zero items" doesn't mean the same thing for
+every source. GitHub and Reddit must return **at least 1 item** — an empty
+result from either one means the source is broken, not that nothing
+newsworthy happened. Hacker News is different: its keyword filter can
+legitimately find no AI-tagged story on a quiet news day, so **Hacker News is
+allowed to return 0**. What still fails Hacker News is an outage: if more than
+half of the scanned items fail to fetch, `fetch_hackernews()` raises rather
+than returning a quiet, and misleading, empty list.
+
+Both failure shapes matter, for every source. A source that throws lands in
+`data["errors"]`, but a source that is merely blocked can return an empty list
+without raising at all — checking only for exceptions would wave that case
+straight through.
+
+### Retries
+
+All three sources retry transient failures before giving up, via a shared
+helper (`sources/_retry.py`). GitHub (`sources/github.py`) and Hacker News
+(`sources/hackernews.py`) each retry 3 times with a 5s/10s linear backoff —
+enough to ride out a brief 5xx or Firebase blip without losing the whole
+section. Reddit's retry is sized differently; see below.
 
 ### The Reddit caveat
 

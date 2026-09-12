@@ -3,6 +3,8 @@ import re
 import time
 import feedparser
 
+from sources._retry import retry
+
 FEEDS = {
     "LocalLLaMA": "https://www.reddit.com/r/LocalLLaMA/.rss",
     "MachineLearning": "https://www.reddit.com/r/MachineLearning/.rss",
@@ -33,31 +35,18 @@ def _clean(html, limit=300):
     return text[:limit].rstrip() + ("..." if len(text) > limit else "")
 
 
-def _parse_feed(sub, url):
-    """Fetch one feed, retrying on throttle/block.
+def _fetch_one(sub, url):
+    """Fetch one feed.
 
     feedparser never raises on an HTTP error - it returns an empty feed with
     a status code. Left alone that turns a blocked Reddit into a silently
     empty report section, so translate it into a real exception that
-    aggregate.collect() can record.
+    retry() (and, if all attempts fail, aggregate.collect()) can act on.
     """
-    last = None
-    for attempt in range(1, RETRIES + 1):
-        feed = feedparser.parse(url, agent=UA)
-        status = getattr(feed, "status", None)
-
-        if feed.entries:
-            return feed.entries
-
-        last = f"r/{sub}: HTTP {status}, 0 entries"
-        if attempt < RETRIES:
-            print(f"[retry {attempt}/{RETRIES}] {last}")
-            time.sleep(BACKOFF * attempt)
-
-    raise RuntimeError(
-        f"Reddit feed unavailable after {RETRIES} attempts ({last}). "
-        "Datacenter IPs are frequently rate-limited or blocked by Reddit."
-    )
+    feed = feedparser.parse(url, agent=UA)
+    if not feed.entries:
+        raise RuntimeError(f"r/{sub}: HTTP {getattr(feed, 'status', None)}, 0 entries")
+    return feed.entries
 
 
 def fetch_reddit(limit=8):
@@ -65,7 +54,14 @@ def fetch_reddit(limit=8):
     for i, (sub, url) in enumerate(FEEDS.items()):
         if i:
             time.sleep(PAUSE)  # be a polite anonymous client
-        for entry in _parse_feed(sub, url)[:limit]:
+        try:
+            entries = retry(lambda: _fetch_one(sub, url),
+                            attempts=RETRIES, backoff=BACKOFF, label="reddit")
+        except Exception as e:
+            raise RuntimeError(
+                f"{e} (Datacenter IPs are frequently rate-limited or "
+                f"blocked by Reddit.)") from e
+        for entry in entries[:limit]:
             desc = _clean(entry.get("summary", ""))
             out.append({
                 "sub": sub,
