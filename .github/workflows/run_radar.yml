@@ -24,7 +24,7 @@ jobs:
       - name: Set up Python
         # Pinned to 3.12, which has prebuilt wheels for matplotlib and fpdf2.
         # Local development runs 3.14; see README "Python version".
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@v7.1.0
         with:
           python-version: "3.12"
           cache: pip
